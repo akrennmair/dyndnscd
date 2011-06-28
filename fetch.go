@@ -12,6 +12,7 @@ import (
 
 type Fetcher interface {
 	FetchIP() (net.IP, os.Error)
+	Source() string
 }
 
 func NewFetcher(c *conf.ConfigFile, section string) (f Fetcher, e os.Error) {
@@ -46,6 +47,10 @@ func NewIPBouncerFetcher(bouncer_url string) Fetcher {
 	return f
 }
 
+func (f IPBouncerFetcher) Source() string {
+	return f.bouncer_url
+}
+
 func (f IPBouncerFetcher) FetchIP() (ip net.IP, e os.Error) {
 	httpclient := new(http.Client)
 	resp, err := httpclient.Get(f.bouncer_url)
@@ -71,6 +76,10 @@ func NewDeviceFetcher(device string) Fetcher {
 	f := new(DeviceFetcher)
 	f.device = device
 	return f
+}
+
+func (f DeviceFetcher) Source() string {
+	return f.device
 }
 
 func (f DeviceFetcher) FetchIP() (ip net.IP, err os.Error) {

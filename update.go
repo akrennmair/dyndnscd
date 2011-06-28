@@ -10,6 +10,7 @@ import (
 
 type Updater interface {
 	UpdateIP(ip net.IP) os.Error
+	Target() string
 }
 
 type URLUpdater struct {
@@ -26,7 +27,11 @@ func NewUpdater(c *conf.ConfigFile, section string) (Updater, os.Error) {
 	return u, nil
 }
 
-func (u *URLUpdater) UpdateIP(ip net.IP) os.Error {
+func (u URLUpdater) Target() string {
+		return u.url
+}
+
+func (u URLUpdater) UpdateIP(ip net.IP) os.Error {
 	full_url := strings.Replace(u.url, "<ip>", ip.String(), -1)
 	httpclient := new(http.Client)
 	resp, err := httpclient.Get(full_url)
