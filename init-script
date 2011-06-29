@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# dyndnscd init script for Debian.
+# depends on the daemon package.
+
+### BEGIN INIT INFO
+# Provides:          dyndnscd
+# Default-Start:     2 3 4 5
+# Default-Stop:
+# Required-Start:
+# Required-Stop:
+# Short-Description: dyndns client daemon
+### END INIT INFO
+
+test -f /usr/local/sbin/dyndnscd || exit 0
+
+. /lib/lsb/init-functions
+
+case "$1" in
+start)	log_daemon_msg "Starting dyndns client daemon" "dyndnscd"
+	daemon --name dyndnscd -o /var/log/dyndnscd.log -- /usr/local/sbin/dyndnscd -f /etc/dyndnscd.conf
+	log_end_msg $?
+	;;
+stop)	log_daemon_msg "Stopping dyndns client daemon" "dyndnscd"
+	daemon --name dyndnscd --stop
+	log_end_msg $?
+	;;
+restart) log_daemon_msg "Restarting dyndns client daemon" "dyndnscd"
+	daemon --name dyndnscd --stop
+	daemon --name dyndnscd -o /var/log/dyndnscd.log -- /usr/local/sbin/dyndnscd -f /etc/dyndnscd.conf
+	log_end_msg $?
+	;;
+*)	log_action_msg "Usage: /etc/init.d/dyndnscd {start|stop|restart}"
+	exit 2
+	;;
+esac
+exit 0
