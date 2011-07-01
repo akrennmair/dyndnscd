@@ -43,18 +43,24 @@ the minimum amount of seconds between two polling attempts).
 
 Example 1:
 
-[dyndns-bouncer]
-type = ipbouncer
-bouncer_url = http://example.com/ip-bouncer
-update_url = http://username:password@members.dyndns.org/nic/update?hostname=example.dyndns.org&myip=<ip>&wildcard=NOCHG&mx=NOCHG&backmx=NOCHG
+	[dyndns-bouncer]
+	type = ipbouncer
+	bouncer_url = http://example.com/ip-bouncer
+	update_url = http://username:password@members.dyndns.org/nic/update?hostname=example.dyndns.org&myip=<ip>&wildcard=NOCHG&mx=NOCHG&backmx=NOCHG
 
 Example 2:
 
-[dyndns-eth0]
-type = device
-device = eth0
-update_url = http://example.com/?myip=<ip>
+	[dyndns-eth0]
+	type = device
+	device = eth0
+	update_url = http://example.com/?myip=<ip>
 
+In addition, you can globally configure the log method. By default, dyndnscd 
+logs everything to stderr. If you configure
+
+	log_method = syslog
+
+then dyndnscd will log to syslog instead.
 
 Contact
 -------
