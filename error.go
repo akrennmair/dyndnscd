@@ -21,13 +21,13 @@ func (e *UnknownSectionTypeError) String() string {
 }
 
 func NewConfigMissingError(config string) os.Error {
-	e := new(ConfigMissingError)
+	e := &ConfigMissingError{}
 	e.config = config
 	return e
 }
 
 func NewUnknownSectionTypeError(sectiontype string) os.Error {
-	e := new(UnknownSectionTypeError)
+	e := &UnknownSectionTypeError{}
 	e.sectiontype = sectiontype
 	return e
 }

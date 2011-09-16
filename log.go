@@ -32,7 +32,7 @@ type SysLogger struct {
 }
 
 func NewSysLogger() *SysLogger {
-	sl := new(SysLogger)
+	sl := &SysLogger{}
 	sl.debug = syslog.NewLogger(syslog.LOG_DEBUG, log.LstdFlags)
 	sl.info = syslog.NewLogger(syslog.LOG_INFO, log.LstdFlags)
 	sl.warn = syslog.NewLogger(syslog.LOG_WARNING, log.LstdFlags)

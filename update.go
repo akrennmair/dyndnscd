@@ -18,7 +18,7 @@ type URLUpdater struct {
 }
 
 func NewUpdater(c *conf.ConfigFile, section string) (Updater, os.Error) {
-	u := new(URLUpdater)
+	u := &URLUpdater{}
 	update_url, err := c.GetString(section, "update_url")
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func (u URLUpdater) Target() string {
 
 func (u URLUpdater) UpdateIP(ip net.IP) os.Error {
 	full_url := strings.Replace(u.url, "<ip>", ip.String(), -1)
-	httpclient := new(http.Client)
+	httpclient := &http.Client{}
 	resp, err := httpclient.Get(full_url)
 	if err != nil {
 		return err

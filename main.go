@@ -32,7 +32,7 @@ func main() {
 
 	go func() {
 		for {
-			time.Sleep(int64(120000000000))
+			time.Sleep(int64(120e9))
 			logchan <- NewLogMsg(INFO, "memory: " + MemoryStatistics())
 		}
 	}()

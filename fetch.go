@@ -42,7 +42,7 @@ type IPBouncerFetcher struct {
 }
 
 func NewIPBouncerFetcher(bouncer_url string) Fetcher {
-	f := new(IPBouncerFetcher)
+	f := &IPBouncerFetcher{}
 	f.bouncer_url = bouncer_url
 	return f
 }
@@ -52,7 +52,7 @@ func (f IPBouncerFetcher) Source() string {
 }
 
 func (f IPBouncerFetcher) FetchIP() (ip net.IP, e os.Error) {
-	httpclient := new(http.Client)
+	httpclient := &http.Client{}
 	resp, err := httpclient.Get(f.bouncer_url)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ type DeviceFetcher struct {
 }
 
 func NewDeviceFetcher(device string) Fetcher {
-	f := new(DeviceFetcher)
+	f := &DeviceFetcher{}
 	f.device = device
 	return f
 }
