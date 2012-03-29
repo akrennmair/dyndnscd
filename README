@@ -15,11 +15,11 @@ Dependencies
 
 dyndnscd is written in the fine programming language Go: http://golang.org/
 In addition to the Go environment, you need goconf, which you can install in 
-your Go environment by typing "goinstall goconf.googlecode.com/hg".
+your Go environment by typing "go get github.com/akrennmair/goconf".
 
 Installation
 ------------
-Currently, there is no installation routine. Build it by running "make" and run
+Currently, there is no installation routine. Build it by running "go build" and run
 it with "./dyndnscd -f yourconfigfile". The following section describes how to 
 configure dyndnscd.
 

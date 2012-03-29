@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/akrennmair/goconf"
 	"fmt"
-	"time"
-	"goconf.googlecode.com/hg"
 	"net"
+	"time"
 )
 
 func SpawnPollers(c *conf.ConfigFile, logchan chan LogMsg) {
@@ -38,7 +38,7 @@ func SpawnPollers(c *conf.ConfigFile, logchan chan LogMsg) {
 }
 
 func Poller(section string, f Fetcher, u Updater, interval int, logchan chan LogMsg) {
-	logchan <- NewLogMsg(DEBUG, "started Poller for section " + section)
+	logchan <- NewLogMsg(DEBUG, "started Poller for section "+section)
 	old_ip := net.IPv4(0, 0, 0, 0)
 	for {
 		ip, err := f.FetchIP()
@@ -46,17 +46,17 @@ func Poller(section string, f Fetcher, u Updater, interval int, logchan chan Log
 			logchan <- NewLogMsg(ERROR, fmt.Sprintf("%s: fetching IP from %s failed: %v", section, f.Source(), err))
 		} else {
 			logchan <- NewLogMsg(DEBUG, fmt.Sprintf("%s: fetched IP %v", section, ip))
-			if (!ip.Equal(old_ip)) {
+			if !ip.Equal(old_ip) {
 				if err2 := u.UpdateIP(ip); err != nil {
 					logchan <- NewLogMsg(ERROR, fmt.Sprintf("Updating IP to %s failed: %v", u.Target(), err2))
 				} else {
 					old_ip = ip
 				}
 			} else {
-				logchan <- NewLogMsg(DEBUG, section + ": new IP same as old IP")
+				logchan <- NewLogMsg(DEBUG, section+": new IP same as old IP")
 			}
 		}
 		logchan <- NewLogMsg(DEBUG, fmt.Sprintf("%s: sleeping for %d seconds", section, interval))
-		time.Sleep(int64(interval) * int64(1000000000))
+		time.Sleep(time.Duration(interval) * time.Second)
 	}
 }

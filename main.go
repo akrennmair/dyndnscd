@@ -1,12 +1,12 @@
 package main
 
 import (
-	"goconf.googlecode.com/hg"
+	"github.com/akrennmair/goconf"
 	"flag"
-	"os"
 	"fmt"
-	"time"
+	"os"
 	"runtime"
+	"time"
 )
 
 func main() {
@@ -32,13 +32,13 @@ func main() {
 
 	go func() {
 		for {
-			time.Sleep(int64(120e9))
-			logchan <- NewLogMsg(INFO, "memory: " + MemoryStatistics())
+			time.Sleep(120 * time.Second)
+			logchan <- NewLogMsg(INFO, "memory: "+MemoryStatistics())
 		}
 	}()
 
 	done := make(chan int)
-	<-done;
+	<-done
 }
 
 func MemoryStatistics() string {
@@ -62,6 +62,9 @@ func MemoryStatistics() string {
 		total.FreeObjects += r.FreeObjects
 	}
 
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
 	return fmt.Sprintf("%d in use objects (%d in use bytes) | Alloc: %d TotalAlloc: %d",
-		total.InUseObjects(), total.InUseBytes(), runtime.MemStats.Alloc, runtime.MemStats.TotalAlloc)
+		total.InUseObjects(), total.InUseBytes(), m.Alloc, m.TotalAlloc)
 }
