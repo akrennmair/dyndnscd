@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/akrennmair/goconf"
 	"flag"
 	"fmt"
+	"github.com/akrennmair/goconf"
 	"os"
 	"runtime"
 	"time"

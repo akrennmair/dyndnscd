@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/akrennmair/goconf"
 	"fmt"
+	"github.com/akrennmair/goconf"
 	"net"
 	"time"
 )
