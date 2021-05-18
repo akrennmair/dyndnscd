@@ -1,42 +1,48 @@
 package main
 
 import (
-	"github.com/akrennmair/goconf"
+	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
 )
 
-type Updater interface {
-	UpdateIP(ip net.IP) error
+type updater interface {
+	UpdateIP(ctx context.Context, ip net.IP) error
 	Target() string
 }
 
-type URLUpdater struct {
+type urlUpdater struct {
 	url string
 }
 
-func NewUpdater(c *conf.ConfigFile, section string) (Updater, error) {
-	u := &URLUpdater{}
-	update_url, err := c.GetString(section, "update_url")
-	if err != nil {
-		return nil, err
+func newUpdater(conf configSection) (updater, error) {
+	if conf.UpdateURL == "" {
+		return nil, fmt.Errorf("%s: missing update_url", conf.Name)
 	}
-	u.url = update_url
-	return u, nil
+	return &urlUpdater{
+		url: conf.UpdateURL,
+	}, nil
 }
 
-func (u URLUpdater) Target() string {
+func (u *urlUpdater) Target() string {
 	return u.url
 }
 
-func (u URLUpdater) UpdateIP(ip net.IP) error {
-	full_url := strings.Replace(u.url, "<ip>", ip.String(), -1)
-	httpclient := &http.Client{}
-	resp, err := httpclient.Get(full_url)
+func (u *urlUpdater) UpdateIP(ctx context.Context, ip net.IP) error {
+	fullURL := strings.Replace(u.url, "<ip>", ip.String(), -1)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
 	resp.Body.Close()
+
 	return nil
 }

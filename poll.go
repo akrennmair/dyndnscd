@@ -1,62 +1,67 @@
 package main
 
 import (
-	"fmt"
-	"github.com/akrennmair/goconf"
+	"context"
+	"log"
 	"net"
 	"time"
 )
 
-func SpawnPollers(c *conf.ConfigFile, logchan chan LogMsg) {
-	sections := c.GetSections()
-	for i := range sections {
-		sectionname := sections[i]
-		if sectionname == "default" {
+func spawnPollers(ctx context.Context, conf config) {
+	for _, sectionConf := range conf {
+
+		fetcher, err := newFetcher(sectionConf)
+		if err != nil {
+			log.Printf("Couldn't create fetcher for configuration %s: %v", sectionConf.Name, err)
 			continue
 		}
 
-		fetcher, err1 := NewFetcher(c, sectionname)
-		if err1 != nil {
-			logchan <- NewLogMsg(WARN, fmt.Sprintf("couldn't create fetcher for section %s: %v", sectionname, err1))
+		updater, err := newUpdater(sectionConf)
+		if err != nil {
+			log.Printf("Couldn't create updater for configuration %s: %v", sectionConf.Name, err)
 			continue
 		}
 
-		updater, err2 := NewUpdater(c, sectionname)
-		if err2 != nil {
-			logchan <- NewLogMsg(WARN, fmt.Sprintf("couldn't create updater for section %s: %v", sectionname, err2))
-			continue
-		}
-
-		interval, err3 := c.GetInt(sectionname, "interval")
-		if err3 != nil {
-			logchan <- NewLogMsg(WARN, fmt.Sprintf("couldn't get interval for section %s: %v", sectionname, err3))
-			continue
-		}
-
-		go Poller(sectionname, fetcher, updater, interval, logchan)
+		go poller(ctx, sectionConf, fetcher, updater)
 	}
 }
 
-func Poller(section string, f Fetcher, u Updater, interval int, logchan chan LogMsg) {
-	logchan <- NewLogMsg(DEBUG, "started Poller for section "+section)
-	old_ip := net.IPv4(0, 0, 0, 0)
-	for {
-		ip, err := f.FetchIP()
+func poller(ctx context.Context, conf configSection, f fetcher, u updater) {
+	log.Printf("Started poller for section %s", conf.Name)
+	oldIP := net.IPv4(0, 0, 0, 0)
+
+	interval := conf.Interval
+	if interval == 0 {
+		interval = 60 * time.Second
+	}
+
+	ticker := time.NewTicker(interval)
+
+	poll := func() {
+		ip, err := f.FetchIP(ctx)
 		if err != nil {
-			logchan <- NewLogMsg(ERROR, fmt.Sprintf("%s: fetching IP from %s failed: %v", section, f.Source(), err))
-		} else {
-			logchan <- NewLogMsg(DEBUG, fmt.Sprintf("%s: fetched IP %v", section, ip))
-			if !ip.Equal(old_ip) {
-				if err2 := u.UpdateIP(ip); err != nil {
-					logchan <- NewLogMsg(ERROR, fmt.Sprintf("Updating IP to %s failed: %v", u.Target(), err2))
-				} else {
-					old_ip = ip
-				}
-			} else {
-				logchan <- NewLogMsg(DEBUG, section+": new IP same as old IP")
-			}
+			log.Printf("%s: fetching IP from %s failed: %v", conf.Name, f.Source(), err)
+			return
 		}
-		logchan <- NewLogMsg(DEBUG, fmt.Sprintf("%s: sleeping for %d seconds", section, interval))
-		time.Sleep(time.Duration(interval) * time.Second)
+		if ip.Equal(oldIP) {
+			log.Printf("%s: new IP same as old IP", conf.Name)
+			return
+		}
+		if err := u.UpdateIP(ctx, ip); err != nil {
+			log.Printf("%s: updating IP to %s failed: %v", conf.Name, u.Target(), err)
+			return
+		}
+		oldIP = ip
+	}
+
+	poll()
+
+	for {
+		select {
+		case <-ticker.C:
+			poll()
+		case <-ctx.Done():
+			return
+		}
 	}
 }

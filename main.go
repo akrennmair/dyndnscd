@@ -3,14 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/akrennmair/goconf"
+	"log"
 	"os"
-	"runtime"
 	"time"
+
+	"github.com/fraugster/cli"
+	"gopkg.in/yaml.v2"
 )
 
 func main() {
-	var configfile *string = flag.String("f", "", "configuration file")
+	ctx := cli.Context()
+
+	configfile := flag.String("f", "", "configuration file")
 	flag.Parse()
 
 	if *configfile == "" {
@@ -19,52 +23,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	c, err := conf.ReadConfigFile(*configfile)
+	f, err := os.Open(*configfile)
 	if err != nil {
-		fmt.Printf("reading configuration file failed: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Opening configuration file %s failed: %v", *configfile, err)
+	}
+	defer f.Close()
+
+	var conf config
+
+	if err := yaml.NewDecoder(f).Decode(&conf); err != nil {
+		log.Fatalf("Parsing configuration file %s failed: %v", *configfile, err)
 	}
 
-	logchan := make(chan LogMsg)
-	go Logger(c, logchan)
+	spawnPollers(ctx, conf)
 
-	SpawnPollers(c, logchan)
-
-	go func() {
-		for {
-			time.Sleep(120 * time.Second)
-			logchan <- NewLogMsg(INFO, "memory: "+MemoryStatistics())
-		}
-	}()
-
-	done := make(chan int)
-	<-done
+	<-ctx.Done()
 }
 
-func MemoryStatistics() string {
-	var p []runtime.MemProfileRecord
-	n, ok := runtime.MemProfile(nil, false)
-	for {
-		p = make([]runtime.MemProfileRecord, n+50)
-		n, ok = runtime.MemProfile(p, false)
-		if ok {
-			p = p[0:n]
-			break
-		}
-	}
+type config []configSection
 
-	var total runtime.MemProfileRecord
-	for i := range p {
-		r := &p[i]
-		total.AllocBytes += r.AllocBytes
-		total.AllocObjects += r.AllocObjects
-		total.FreeBytes += r.FreeBytes
-		total.FreeObjects += r.FreeObjects
-	}
-
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-
-	return fmt.Sprintf("%d in use objects (%d in use bytes) | Alloc: %d TotalAlloc: %d",
-		total.InUseObjects(), total.InUseBytes(), m.Alloc, m.TotalAlloc)
+type configSection struct {
+	Name       string        `yaml:"name"`
+	Interval   time.Duration `yaml:"duration"`
+	Type       string        `yaml:"type"`
+	BouncerURL string        `yaml:"bouncer_url"`
+	Device     string        `yaml:"device"`
+	UpdateURL  string        `yaml:"update_url"`
 }
