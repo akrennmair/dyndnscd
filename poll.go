@@ -30,7 +30,12 @@ func poller(ctx context.Context, conf configSection, f fetcher, u updater) {
 	log.Printf("Started poller for section %s", conf.Name)
 	oldIP := net.IPv4(0, 0, 0, 0)
 
-	ticker := time.NewTicker(conf.Interval)
+	interval := conf.Interval
+	if interval == 0 {
+		interval = 60 * time.Second
+	}
+
+	ticker := time.NewTicker(interval)
 
 	poll := func() {
 		ip, err := f.FetchIP(ctx)
