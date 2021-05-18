@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"time"
 
@@ -13,6 +16,12 @@ import (
 
 func main() {
 	ctx := cli.Context()
+
+	dialer := &net.Dialer{}
+
+	http.DefaultTransport.(*http.Transport).DialContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
+		return dialer.DialContext(ctx, "tcp4", addr)
+	}
 
 	configfile := flag.String("f", "", "configuration file")
 	flag.Parse()

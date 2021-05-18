@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -68,9 +69,11 @@ func (f *ipBouncerFetcher) FetchIP(ctx context.Context) (net.IP, error) {
 		return nil, err
 	}
 
-	ip := net.ParseIP(string(data))
+	ipStr := strings.Split(string(data), "\n")[0]
+
+	ip := net.ParseIP(ipStr)
 	if ip == nil {
-		return nil, fmt.Errorf("parsing IP %s failed", string(data))
+		return nil, fmt.Errorf("parsing IP %s failed", ipStr)
 	}
 
 	return ip, nil

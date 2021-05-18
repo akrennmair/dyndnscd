@@ -38,6 +38,7 @@ func poller(ctx context.Context, conf configSection, f fetcher, u updater) {
 	ticker := time.NewTicker(interval)
 
 	poll := func() {
+		log.Printf("%s: fetching IP...", conf.Name)
 		ip, err := f.FetchIP(ctx)
 		if err != nil {
 			log.Printf("%s: fetching IP from %s failed: %v", conf.Name, f.Source(), err)
@@ -52,6 +53,7 @@ func poller(ctx context.Context, conf configSection, f fetcher, u updater) {
 			return
 		}
 		oldIP = ip
+		log.Printf("%s: updated IP to %s", conf.Name, ip)
 	}
 
 	poll()
