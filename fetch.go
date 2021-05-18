@@ -1,8 +1,9 @@
 package main
 
 import (
-	"bufio"
-	"github.com/akrennmair/goconf"
+	"context"
+	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -10,96 +11,101 @@ import (
 	"unsafe"
 )
 
-type Fetcher interface {
-	FetchIP() (net.IP, error)
+type fetcher interface {
+	FetchIP(context.Context) (net.IP, error)
 	Source() string
 }
 
-func NewFetcher(c *conf.ConfigFile, section string) (f Fetcher, e error) {
-	sectiontype, err := c.GetString(section, "type")
+func newFetcher(conf configSection) (fetcher, error) {
+	switch conf.Type {
+	case "ipbouncer":
+		if conf.BouncerURL == "" {
+			return nil, fmt.Errorf("%s: missing bouncer_url", conf.Name)
+		}
+		return newIPBouncerFetcher(conf.BouncerURL), nil
+	case "device":
+		if conf.Device == "" {
+			return nil, fmt.Errorf("%s: missing device", conf.Name)
+		}
+		return newDeviceFetcher(conf.Device), nil
+	default:
+		return nil, fmt.Errorf("unknown type %s", conf.Type)
+	}
+}
+
+type ipBouncerFetcher struct {
+	url string
+}
+
+func newIPBouncerFetcher(url string) fetcher {
+	return &ipBouncerFetcher{
+		url: url,
+	}
+}
+
+func (f *ipBouncerFetcher) Source() string {
+	return f.url
+}
+
+func (f *ipBouncerFetcher) FetchIP(ctx context.Context) (net.IP, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", f.url, nil)
 	if err != nil {
 		return nil, err
 	}
-	switch sectiontype {
-	case "ipbouncer":
-		bouncer_url, e1 := c.GetString(section, "bouncer_url")
-		if e1 != nil {
-			return nil, NewConfigMissingError("bouncer_url")
-		}
-		return NewIPBouncerFetcher(bouncer_url), nil
-	case "device":
-		device, e1 := c.GetString(section, "device")
-		if e1 != nil {
-			return nil, NewConfigMissingError("device")
-		}
-		return NewDeviceFetcher(device), nil
-	}
-	return nil, NewUnknownSectionTypeError(sectiontype)
-}
 
-type IPBouncerFetcher struct {
-	bouncer_url string
-}
-
-func NewIPBouncerFetcher(bouncer_url string) Fetcher {
-	f := &IPBouncerFetcher{}
-	f.bouncer_url = bouncer_url
-	return f
-}
-
-func (f IPBouncerFetcher) Source() string {
-	return f.bouncer_url
-}
-
-func (f IPBouncerFetcher) FetchIP() (ip net.IP, e error) {
-	httpclient := &http.Client{}
-	resp, err := httpclient.Get(f.bouncer_url)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	httpdata := bufio.NewReader(resp.Body)
-	ipdata, _, err2 := httpdata.ReadLine()
-	if err2 != nil {
-		return nil, err2
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s returned HTTP %d", f.url, resp.StatusCode)
 	}
 
-	return net.ParseIP(string(ipdata)), nil
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	ip := net.ParseIP(string(data))
+	if ip == nil {
+		return nil, fmt.Errorf("parsing IP %s failed", string(data))
+	}
+
+	return ip, nil
 }
 
-type DeviceFetcher struct {
+type deviceFetcher struct {
 	device string
 }
 
-func NewDeviceFetcher(device string) Fetcher {
-	f := &DeviceFetcher{}
-	f.device = device
-	return f
+func newDeviceFetcher(device string) fetcher {
+	return &deviceFetcher{
+		device: device,
+	}
 }
 
-func (f DeviceFetcher) Source() string {
+func (f *deviceFetcher) Source() string {
 	return f.device
 }
 
-func (f DeviceFetcher) FetchIP() (ip net.IP, err error) {
+func (f *deviceFetcher) FetchIP(context.Context) (net.IP, error) {
 	var ifreqbuf [40]byte
-
-	for i := 0; i < 40; i++ {
-		ifreqbuf[i] = 0
-	}
 
 	for i := 0; i < len(f.device); i++ {
 		ifreqbuf[i] = f.device[i]
 	}
 
-	socketfd, _, _ := syscall.Syscall(syscall.SYS_SOCKET, syscall.AF_INET, syscall.SOCK_DGRAM, 0)
+	socketfd, _, errno := syscall.Syscall(syscall.SYS_SOCKET, syscall.AF_INET, syscall.SOCK_DGRAM, 0)
+	if err := os.NewSyscallError("SYS_SOCKET", errno); err != nil {
+		return nil, err
+	}
 	defer syscall.Close(int(socketfd))
 
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(socketfd), uintptr(syscall.SIOCGIFADDR), uintptr(unsafe.Pointer(&ifreqbuf)))
-	if err = os.NewSyscallError("SYS_IOCTL", errno); err != nil {
-		return
+	_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(socketfd), uintptr(syscall.SIOCGIFADDR), uintptr(unsafe.Pointer(&ifreqbuf)))
+	if err := os.NewSyscallError("SYS_IOCTL", errno); err != nil {
+		return nil, err
 	}
-	ip = net.IPv4(ifreqbuf[20], ifreqbuf[21], ifreqbuf[22], ifreqbuf[23])
-	return
+	return net.IPv4(ifreqbuf[20], ifreqbuf[21], ifreqbuf[22], ifreqbuf[23]), nil
 }
